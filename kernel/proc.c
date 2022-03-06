@@ -6,11 +6,22 @@
 #include "proc.h"
 #include "defs.h"
 
+#define MAX_UINT64 (-1)
+#define EMPTY MAX_UINT64
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
 
 struct proc *initproc;
+
+struct qentry {
+  uint64 pass;
+  uint64 prev; //index of previos qentry
+  uint64 next; //index of next qentry
+};
+
+struct qentry qtable[NPROC+2];
 
 int nextpid = 1;
 struct spinlock pid_lock;
@@ -140,7 +151,8 @@ found:
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
-
+  p->nice = 10;
+  p->runtime = 0;
   return p;
 }
 
@@ -498,6 +510,7 @@ yield(void)
   struct proc *p = myproc();
   acquire(&p->lock);
   p->state = RUNNABLE;
+  p->runtime++;
   sched();
   release(&p->lock);
 }
